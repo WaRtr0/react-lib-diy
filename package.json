@@ -1,0 +1,36 @@
+{
+  "name": "react-lib-diy",
+  "version": "0.1.0",
+  "description": "React-like library in TypeScript",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "esbuild src/**/*.ts src/index.ts --outdir=dist --outbase=src --format=esm --sourcemap --define:DEBUG=false && pnpm run minify",
+    "dev": "esbuild src/**/*.ts src/index.ts --outdir=dist --outbase=src --format=esm --sourcemap --define:DEBUG=true --watch",
+    "minify": "esbuild dist/index.js --bundle --minify --sourcemap --format=esm --define:DEBUG=false --outfile=dist/index.min.js"
+  },
+  "keywords": [
+    "react",
+    "typescript",
+    "jsx"
+  ],
+  "author": "WaRtr0 mmorot",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WaRtr0/react-lib-diy"
+  },
+  "homepage": "https://github.com/WaRtr0/react-lib-diy",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.5",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.5.0"
+  }
+}
