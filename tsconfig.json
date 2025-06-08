@@ -15,13 +15,13 @@
     "declarationMap": true,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
-    "typeRoots": ["./src/types", "./sample"],
+    "typeRoots": ["./src/types"],
     "paths": {
       "@/*": ["./src/*"],
       "@core/*": ["./src/core/*"],
       "@types/*": ["./src/types/*"]
     }
   },
-  "include": ["src/**/*", "sample/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }
