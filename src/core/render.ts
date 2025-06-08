@@ -1,4 +1,5 @@
 import type { VirtualNode } from "./component";
+import { setRerenderFunction, initHooks } from "./hooks/state";
 
 declare const DEBUG: boolean;
 
@@ -39,14 +40,14 @@ export function render(virtualNode: VirtualNode, container: HTMLElement) {
     if (!oldVirtualNode) {
         const dom = createDom(virtualNode);
         if (DEBUG) {
-            console.log("[render] - create First Dom", dom);
+            console.log("render.ts[render] - create First Dom", dom);
         }
         container.appendChild(dom);
         container.__virtualNode = virtualNode;
     } else {
         const dom = updateDom(oldVirtualNode, virtualNode, container);
         if (DEBUG) {
-            console.log("[render] - updateDom", dom);
+            console.log("render.ts[render] - updateDom", dom);
         }
         container.__virtualNode = virtualNode;
     }
@@ -168,12 +169,12 @@ function applyProps(element: HTMLElement, oldProps: Record<string, any>, newProp
             if (key.startsWith("on") && typeof oldProps[key] === "function") {
                 element.removeEventListener(key.toLowerCase().substring(2), oldProps[key]);
                 if (DEBUG) {
-                    console.log("[applyProps] - remove event listener", key);
+                    console.log("render.ts[applyProps] - remove event listener", key);
                 }
             } else {
                 element.removeAttribute(key);
                 if (DEBUG) {
-                    console.log("[applyProps] - remove attribute", key);
+                    console.log("render.ts[applyProps] - remove attribute", key);
                 }
             }
         }
@@ -195,24 +196,24 @@ function applyProps(element: HTMLElement, oldProps: Record<string, any>, newProp
                 if (oldValue) {
                     element.removeEventListener(key.toLowerCase().substring(2), oldValue);
                     if (DEBUG) {
-                        console.log("[applyProps] - remove event listener - oldValue", key, oldValue);
+                        console.log("render.ts[applyProps] - remove event listener - oldValue", key, oldValue);
                     }
                 }
                 element.addEventListener(key.toLowerCase().substring(2), newValue);
                 if (DEBUG) {
-                    console.log("[applyProps] - add event listener - newValue", key, newValue);
+                    console.log("render.ts[applyProps] - add event listener - newValue", key, newValue);
                 }
             } else if (key === "className" && typeof newValue === "string") {
                 // On gere le cas spécial pour la classe CSS
                 element.className = newValue;
                 if (DEBUG) {
-                    console.log("[applyProps] - set className", key, newValue);
+                    console.log("render.ts[applyProps] - set className", key, newValue);
                 }
             } else if (key === "style" && typeof newValue === "object" && newValue != null) {
                 // On gere le cas spécial pour les styles
                 Object.assign(element.style, newValue);
                 if (DEBUG) {
-                    console.log("[applyProps] - set style", key, newValue);
+                    console.log("render.ts[applyProps] - set style", key, newValue);
                 }
             } else {
                 // other attributs
@@ -221,19 +222,19 @@ function applyProps(element: HTMLElement, oldProps: Record<string, any>, newProp
                 if (newValue === true) {
                     element.setAttribute(key, "");
                     if (DEBUG) {
-                        console.log("[applyProps] - set attribute (vide)", key);
+                        console.log("render.ts[applyProps] - set attribute (vide)", key);
                     }
                 }
                 // si la valeur est une string, on l'ajoute comme attribut
                 else if (newValue !== false && newValue != null && typeof newValue === "string") {
                     element.setAttribute(key, newValue);
                     if (DEBUG) {
-                        console.log("[applyProps] - set attribute", key, newValue);
+                        console.log("render.ts[applyProps] - set attribute", key, newValue);
                     }
                 }
                 else {
                     if (DEBUG) {
-                        console.log("[applyProps] - remove attribute", key);
+                        console.log("render.ts[applyProps] - remove attribute", key);
                     }
                     element.removeAttribute(key);
                 }
@@ -247,8 +248,7 @@ function applyProps(element: HTMLElement, oldProps: Record<string, any>, newProp
  */
 function handleComponent(virtualNode: VirtualNode) : Node {
     const componentId = nextComponentId++;
-    //ATTEMTION
-    // initHooks(componentId);
+    initHooks(componentId);
 
     // on execute le component avec ses props pour obtenir le virtualNode enfant (rendu)
     const renderedVirtualNode = (virtualNode.type as Function)(virtualNode.props ?? {});
@@ -257,7 +257,7 @@ function handleComponent(virtualNode: VirtualNode) : Node {
     const dom = createDom(renderedVirtualNode as VirtualNode);
 
     // puis on stocke l'instance du composant
-    setUpdateInstance(componentId, renderedVirtualNode, dom);
+    setUpdateInstance(componentId, virtualNode, dom);
 
     return dom;
 }
@@ -287,3 +287,52 @@ function setUpdateInstance(componentId: number, virtualNode: VirtualNode, dom: N
     });
 }
 
+/**
+ * setRerenderFunction - Met à jour l'instance du composant.
+ * @param componentId : L'identifiant du composant. (number)
+ * @returns : void
+ */
+setRerenderFunction((componentId: number) => {
+	if (DEBUG) console.log("render.ts[setRerenderFunction] - re-render", componentId);
+
+	// on recupere l'instance du composant
+	const instance = Array.from(componentInstances.values()).find(
+		(instance) => instance.componentId === componentId
+	);
+
+	// on met a jour le dom du composant
+	if (instance) {
+		const parent = instance.dom.parentNode;
+		if (parent) {
+			// Initialiser les hooks avant d'exécuter le composant
+			initHooks(componentId);
+
+			// on execute le component avec ses props pour obtenir le virtualNode enfant (rendu)
+			const newVirtualNode = (instance.virtualNode.type as Function)(instance.virtualNode.props ?? {});
+
+			//    // on met a jour le dom du composant
+			//    updateDom(instance.virtualNode, newVirtualNode as VirtualNode, parent as HTMLElement);
+
+			//    // on met a jour le virtualNode du composant
+			//    // -- instance.virtualNode = newVirtualNode as VirtualNode;
+			// Créer un nouveau DOM à partir du nouveau virtualNode
+			const newDom = createDom(newVirtualNode as VirtualNode);
+
+			// Remplacer l'ancien DOM par le nouveau
+			parent.replaceChild(newDom, instance.dom);
+
+			// Mettre à jour l'instance avec les nouvelles références
+			instance.dom = newDom;
+
+			// On crée une copie de l'ancien virtualNode mais avec les nouveaux enfants
+			// pour préserver la fonction du composant
+			const updatedVirtualNode = {
+				...instance.virtualNode,
+				children: (newVirtualNode as VirtualNode).children
+			};
+
+			// on met a jour le virtualNode du composant en préservant son type
+			instance.virtualNode = updatedVirtualNode;
+		}
+	}
+});
